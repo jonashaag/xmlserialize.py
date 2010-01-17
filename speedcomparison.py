@@ -2,7 +2,7 @@ import time
 import xmlserialize
 from test import TESTCASES
 
-pickel = xmlserialize.try_import('c?Pickle')
+import pickle as pickel
 
 def timeit(callable, args=(), kwargs=dict(), loops=100):
     start_time = time.time()
