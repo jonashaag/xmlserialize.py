@@ -35,18 +35,17 @@ def try_import(module, names=('__name__',)):
     if '?' in module:
         _module = try_import(module.replace('?', ''), names) or \
                   try_import(module[:module.find('?')-1] +
-                             module[module.find('?')+1], names)
+                             module[module.find('?')+1:], names)
     if not _module:
         try:
             _module = __import__(module, fromlist=names)
         except ImportError:
-            return False
+            return
 
     for name in names:
         if not hasattr(_module, name):
-            return False
+            return
     return _module
-
 
 from sys import version_info
 HAVE_PYTHON3 = version_info[0] > 2
