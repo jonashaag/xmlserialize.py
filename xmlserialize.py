@@ -30,6 +30,23 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
+def memoized_function(function, cache={}):
+    def cached_function(*args, **kwargs):
+        _kwargs = tuple(kwargs.iteritems())
+        try:
+            cache_key = hash((id(function), args, _kwargs))
+        except TypeError:
+            try:
+                import cPickle as pickel
+            except ImportError:
+                import pickle as pickel
+            cache_key = pickel.dumps((id(function), args, _kwargs))
+        if cache_key not in cache:
+            cache[cache_key] = function(*args, **kwargs)
+        return cache[cache_key]
+    return cached_function
+
+@memoized_function
 def try_import(module, names=('__name__',)):
     _module = None
     if '?' in module:
@@ -52,15 +69,18 @@ HAVE_PYTHON3 = version_info[0] > 2
 if not HAVE_PYTHON3:
     def try_decode(s):
         try:
-            import chardet
-        except ImportError:
             return s.decode('utf-8')
-        else:
-            encoding = chardet.detect(s)['encoding']
-            if encoding is not None:
-                return s.decode(encoding)
+        except UnicodeDecodeError as ude:
+            try:
+                import chardet
+            except ImportError:
+                raise ude
             else:
-                raise UnicodeDecodeError(s)
+                encoding = chardet.detect(s)['encoding']
+                if encoding is not None:
+                    return s.decode(encoding)
+                else:
+                    raise UnicodeDecodeError(s)
 
 elementtree = try_import('xml.etree.c?ElementTree')
 Element = elementtree.Element
@@ -140,10 +160,7 @@ class SimpleTypeSerializer(Serializer):
 
     def serialize(cls, object, tag_name, serialize_as):
         element = Element(tag_name, type=serialize_as.__name__)
-        if isinstance(object, unicode):
-            element.text = object
-        else:
-            element.text = unicode(object)
+        element.text = unicode(object)
         return element
 
 
@@ -239,19 +256,6 @@ class RangeSerializer(Serializer):
     def unserialize(cls, xml_element, unserialize_to):
         return unserialize_to(*map(int, xml_element.text.split(cls.sep)))
 
-
-def memoized_function(function, cache={}):
-    def cached_function(*args, **kwargs):
-        try:
-            cache_key = hash(id(function), args, kwargs)
-        except TypeError:
-            pickel = try_import('cPickle') or __import__('pickle')
-            cache_key = pickel.dumps((id(function), args, kwargs))
-        if cache_key not in cache:
-            cache[cache_key] = function(*args, **kwargs)
-        return cache[cache_key]
-    return cached_function
-
 @memoized_function
 def get_subclasses(klass, recursive=False, max_depth=None, current_depth=0):
     subclasses = []
@@ -265,7 +269,6 @@ def get_subclasses(klass, recursive=False, max_depth=None, current_depth=0):
                 subclasses.append(subclass)
 
     return tuple(subclasses)
-
 
 def serialize_atomic(object, tag_name):
     if object is None:
@@ -291,8 +294,12 @@ def serialize_atomic(object, tag_name):
     else:
         raise NoSuchSerializer(object)
 
-def serialize(object, root_tag='object', return_string=True):
-    element_tree = serialize_atomic(object, root_tag)
+def serialize(object, tag='object', root_tag='r00t', return_string=True):
+    if root_tag:
+        element_tree = Element(root_tag)
+        element_tree.append(serialize_atomic(object, tag))
+    else:
+        element_tree = serialize_atomic(object, tag)
     if return_string:
         return elementtree.tostring(element_tree)
     else:
