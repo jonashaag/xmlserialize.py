@@ -1,6 +1,11 @@
 # encoding: utf-8
+from __future__ import print_function
+import sys
 import operator
 import xmlserialize
+
+if '--quiet' in sys.argv:
+    print = lambda *a, **k: None
 
 TESTCASES = {
     'BooleanSerializer' : (-1, 0, 1, True, False, u'a'),
@@ -26,30 +31,31 @@ def run_tests(serialize=xmlserialize.serialize,
               unserialize=xmlserialize.unserialize_string, testcases_name='\b'):
     total_errors = 0
     for serializer, testcases in TESTCASES.iteritems():
-        print "Running %s testcases for %s..." % (testcases_name, serializer)
+        print("Running %s testcases for %s..." % (testcases_name, serializer))
         errors = 0
         for index, testcase in enumerate(testcases, 1):
             try:
                 assert_equal(
                     testcase,
-                    unserialize(serialize(testcase), has_root=False)['object']
+                    unserialize(serialize(testcase))['object']
                 )
             except AssertionError as message:
-                print "Testcase #%d failed: %s" % (index, message)
+                print("Testcase #%d failed: %s" % (index, message))
                 errors += 1
         if not errors:
-            print ' PASSED ----'.rjust(79, '-')
+            print(' PASSED ----'.rjust(79, '-'))
         else:
-            print (' %d ERRORS ----' % errors).rjust(79, '-')
+            print((' %d ERRORS ----' % errors).rjust(79, '-'))
 
         total_errors += errors
 
-    print
-    print ("**** TOTAL ERRORS: %d " % total_errors).ljust(79, '*')
-    print
-    print
+    print()
+    print(("**** TOTAL ERRORS: %d " % total_errors).ljust(79, '*'))
+    print()
+    print()
 
-if __name__ == '__main__':
+
+def main():
     run_tests()
 
     def _namespace1():
@@ -66,3 +72,7 @@ if __name__ == '__main__':
 
         run_tests(serialize, unserialize, testcases_name='temporary file save')
     _namespace1()
+
+if __name__ == '__main__':
+    for x in xrange(int(sys.argv[sys.argv.index('--n')+1]) if '--n' in sys.argv else 1):
+        main()
