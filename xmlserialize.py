@@ -299,7 +299,7 @@ def serialize_atomic(object, tag_name):
                     subclass_serializer = (serializer, serializes)
                     break
     if subclass_serializer:
-        return subclass_serializer[0](object, tag_name, subclass_serializer[1])
+        return subclass_serializer[0].serialize(object, tag_name, subclass_serializer[1])
     else:
         raise NoSuchSerializer(object)
 
