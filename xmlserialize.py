@@ -30,6 +30,13 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
+__all__ = (
+    'NoSuchSerializer', 'NoSuchUnserializer', 'Serializer',
+    'GenericTypeSerializer', 'SimpleTypeSerializer', 'IntegerSerializer'
+    'FloatSerializer', 'LongSerializer', 'BooleanSerializer', 'StringSerializer',
+    'SimpleIterableSerializer', 'KeyValueIterableSerializer', 'RangeSerializer'
+)
+
 def memoized_function(function, cache={}):
     def cached_function(*args, **kwargs):
         _kwargs = tuple(kwargs.iteritems())
@@ -176,8 +183,8 @@ class LongSerializer(SimpleTypeSerializer):
 class BooleanSerializer(SimpleTypeSerializer):
     serializes = bool
     unserialize_map = {
-        True  : ('True',  1, '1'),
-        False : ('False', 0, '0')
+        True  : ('True',  'true', 1, '1'),
+        False : ('False', 'false', 0, '0')
     }
 
     def unserialize(cls, xml_element, unserialize_to):
