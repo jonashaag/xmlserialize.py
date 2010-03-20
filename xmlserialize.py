@@ -34,7 +34,7 @@ __all__ = (
     'NoSuchSerializer', 'NoSuchUnserializer', 'Serializer',
     'GenericTypeSerializer', 'SimpleTypeSerializer', 'IntegerSerializer',
     'FloatSerializer', 'LongSerializer', 'BooleanSerializer', 'StringSerializer',
-    'SimpleIterableSerializer', 'KeyValueIterableSerializer', 'RangeSerializer'
+    'SimpleIterableSerializer', 'KeyValueIterableSerializer', 'RangeSerializer',
     'serialize_atomic', 'serialize_to_file', 'unserialize_atomic', 'unserialize_file',
     'unserialize_string'
 )
