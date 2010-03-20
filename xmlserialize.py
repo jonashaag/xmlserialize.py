@@ -32,7 +32,7 @@
 
 __all__ = (
     'NoSuchSerializer', 'NoSuchUnserializer', 'Serializer',
-    'GenericTypeSerializer', 'SimpleTypeSerializer', 'IntegerSerializer'
+    'GenericTypeSerializer', 'SimpleTypeSerializer', 'IntegerSerializer',
     'FloatSerializer', 'LongSerializer', 'BooleanSerializer', 'StringSerializer',
     'SimpleIterableSerializer', 'KeyValueIterableSerializer', 'RangeSerializer'
 )
