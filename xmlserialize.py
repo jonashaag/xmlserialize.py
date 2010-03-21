@@ -39,6 +39,10 @@ __all__ = (
     'unserialize_string'
 )
 
+from lxml.etree import ElementTree, Element, _ElementTree
+from lxml.etree import fromstring as elementtree_fromstring, tostring as elementtree_tostring
+
+
 def memoized_function(function, cache={}):
     def cached_function(*args, **kwargs):
         _kwargs = tuple(kwargs.iteritems())
@@ -57,21 +61,15 @@ def memoized_function(function, cache={}):
 
 @memoized_function
 def try_import(module, names=('__name__',)):
-    _module = None
-    if '?' in module:
-        _module = try_import(module.replace('?', ''), names) or \
-                  try_import(module[:module.find('?')-1] +
-                             module[module.find('?')+1:], names)
-    if not _module:
-        try:
-            _module = __import__(module, fromlist=names)
-        except ImportError:
-            return
+    try:
+        module = __import__(module, fromlist=names)
+    except ImportError:
+        return
 
     for name in names:
-        if not hasattr(_module, name):
+        if not hasattr(module, name):
             return
-    return _module
+    return module
 
 from sys import version_info
 HAVE_PYTHON3 = version_info[0] > 2
@@ -79,20 +77,17 @@ if not HAVE_PYTHON3:
     def try_decode(s):
         try:
             return s.decode('utf-8')
-        except UnicodeDecodeError as ude:
+        except UnicodeDecodeError as unicode_decode_error:
             try:
                 import chardet
             except ImportError:
-                raise ude
+                raise unicode_decode_error
             else:
                 encoding = chardet.detect(s)['encoding']
                 if encoding is not None:
                     return s.decode(encoding)
                 else:
                     raise UnicodeDecodeError(s)
-
-elementtree = try_import('xml.etree.c?ElementTree')
-Element = elementtree.Element
 
 
 class NoSuchSerializer(Exception):
@@ -140,13 +135,16 @@ class Serializer(object):
 
     @classmethod
     def get_for_type(cls, type_):
+        if isinstance(type_, Serializer):
+            return type_
+
         for subclass in cls.subclasses():
             if subclass.serializes is NotImplemented: continue
             for serializes in subclass.serializes:
                 if serializes is type_ or serializes.__name__ == type_:
                     return serializes, subclass
         raise NoSuchUnserializer(type_ if isinstance(type_, str)
-                                        else type_.__name__)
+                                       else type_.__name__)
 
 
 
@@ -212,6 +210,20 @@ class StringSerializer(SimpleTypeSerializer):
         return unicode(xml_element.text)
 
 
+import datetime
+import time
+class DateTimeSerializer(Serializer):
+    serializes = datetime.datetime
+
+    def serialize(cls, object, tag_name, serialize_as):
+        element = Element(tag_name, type=serialize_as.__name__)
+        element.text = str(time.mktime(object.timetuple()))
+        return element
+
+    def unserialize(cls, xml_element, unserialize_to):
+        return datetime.datetime.fromtimestamp(float(xml_element.text))
+
+
 class SimpleIterableSerializer(Serializer):
     serializes = (tuple, list, set, frozenset)
     item_key = 'item'
@@ -245,10 +257,10 @@ class KeyValueIterableSerializer(Serializer):
         return cls.unserialize_tree(xml_element.getchildren(), unserialize_to)
 
     @classmethod
-    def unserialize_tree(cls, xml_tree, unserialize_to):
+    def unserialize_tree(cls, xml_tree, unserialize_to, *args, **kwargs):
         container = unserialize_to()
         for child in xml_tree:
-            object = unserialize_atomic(child)
+            object = unserialize_atomic(child, *args, **kwargs)
             container[child.tag] = object
         return container
 
@@ -274,7 +286,7 @@ def get_subclasses(klass, recursive=False, max_depth=None, current_depth=0):
 
         if recursive:
             for subclass in get_subclasses(subclass, current_depth==max_depth,
-                                            max_depth, current_depth+1):
+                                           max_depth, current_depth+1):
                 subclasses.append(subclass)
 
     return tuple(subclasses)
@@ -303,14 +315,14 @@ def serialize_atomic(object, tag_name):
     else:
         raise NoSuchSerializer(object)
 
-def serialize(object, tag='object', root_tag='r00t', return_string=True):
+def serialize(object, tag='object', root_tag=None, return_string=True):
     if root_tag:
         element_tree = Element(root_tag)
         element_tree.append(serialize_atomic(object, tag))
     else:
         element_tree = serialize_atomic(object, tag)
     if return_string:
-        return elementtree.tostring(element_tree)
+        return elementtree_tostring(element_tree)
     else:
         return element_tree
 
@@ -326,32 +338,33 @@ def serialize_to_file(object, file_, *args, **kwargs):
 
 def unserialize_atomic(xml_element, typemap=None):
     object_type = xml_element.get('type')
-    if typemap and object_type in typemap:
-        object_type = typemap.get(object_type)
-        unserializer = Serializer.get_for_type(object_type)[1]
-    else:
-        object_type, unserializer = Serializer.get_for_type(object_type)
+
+    if typemap:
+        object_type = typemap.get(object_type, object_type)
+
+    object_type, unserializer = Serializer.get_for_type(object_type)
     return unserializer.unserialize(xml_element, object_type)
 
 def unserialize(xml_element_tree, has_root=True, *args, **kwargs):
     if has_root:
-        if isinstance(xml_element_tree, elementtree.ElementTree):
+        if isinstance(xml_element_tree, _ElementTree):
             xml_element_tree = element_tree.getiterator()
         else:
             xml_element_tree = xml_element_tree.getchildren()
     else:
         xml_element_tree = [xml_element_tree]
-    return KeyValueIterableSerializer.unserialize_tree(xml_element_tree, dict)
+    return KeyValueIterableSerializer.unserialize_tree(xml_element_tree, dict,
+                                                       *args, **kwargs)
 
 def unserialize_file(file_, *args, **kwargs):
     close = False
     if not isinstance(file_, file):
         file_ = open(file_)
         close = True
-    result = unserialize(elementtree.fromstring(file_.read()), *args, **kwargs)
+    result = unserialize(elementtree_fromstring(file_.read()), *args, **kwargs)
     if close:
         file_.close()
     return result
 
 def unserialize_string(string, *args, **kwargs):
-    return unserialize(elementtree.fromstring(string), *args, **kwargs)
+    return unserialize(elementtree_fromstring(string), *args, **kwargs)
