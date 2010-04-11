@@ -350,7 +350,7 @@ def unserialize_atomic(xml_element, typemap=None):
 def unserialize(xml_element_tree, has_root=True, *args, **kwargs):
     if has_root:
         if isinstance(xml_element_tree, _ElementTree):
-            xml_element_tree = element_tree.getiterator()
+            xml_element_tree = xml_element_tree.getiterator()
         else:
             xml_element_tree = xml_element_tree.getchildren()
     else:
