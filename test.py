@@ -2,10 +2,14 @@
 from __future__ import print_function
 import sys
 import operator
-import xmlserialize
 
 if '--quiet' in sys.argv:
     print = lambda *a, **k: None
+if '--cython' in sys.argv:
+    import pyximport
+    pyximport.install(pyimport=True)
+
+import xmlserialize
 
 TESTCASES = {
     'BooleanSerializer' : (-1, 0, 1, True, False, u'a'),

@@ -1,5 +1,4 @@
 import time
-import xmlserialize
 from test import TESTCASES
 
 import pickle as pickel
@@ -12,6 +11,7 @@ def timeit(callable, args=(), kwargs=dict(), loops=100):
     return duration, duration/loops
 
 if __name__ == '__main__':
+    import xmlserialize
     print "Running tests with xmlserialize..."
     xtime = timeit(lambda: xmlserialize.unserialize_string(
                             xmlserialize.serialize(TESTCASES)))

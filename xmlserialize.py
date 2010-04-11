@@ -43,21 +43,25 @@ from lxml.etree import ElementTree, Element, _ElementTree
 from lxml.etree import fromstring as elementtree_fromstring, tostring as elementtree_tostring
 
 
-def memoized_function(function, cache={}):
-    def cached_function(*args, **kwargs):
+class memoized_function(object):
+    cache = {}
+    def __init__(self, function):
+        self.function = function
+
+    def __call__(self, *args, **kwargs):
         _kwargs = tuple(kwargs.iteritems())
         try:
-            cache_key = hash((id(function), args, _kwargs))
+            cache_key = hash((id(self.function), args, _kwargs))
         except TypeError:
             try:
                 import cPickle as pickel
             except ImportError:
                 import pickle as pickel
-            cache_key = pickel.dumps((id(function), args, _kwargs))
-        if cache_key not in cache:
-            cache[cache_key] = function(*args, **kwargs)
-        return cache[cache_key]
-    return cached_function
+            cache_key = pickel.dumps((id(self.function), args, _kwargs))
+        if cache_key not in self.cache:
+            self.cache[cache_key] = self.function(*args, **kwargs)
+        return self.cache[cache_key]
+
 
 @memoized_function
 def try_import(module, names=('__name__',)):
@@ -71,23 +75,20 @@ def try_import(module, names=('__name__',)):
             return
     return module
 
-from sys import version_info
-HAVE_PYTHON3 = version_info[0] > 2
-if not HAVE_PYTHON3:
-    def try_decode(s):
+def try_decode(s):
+    try:
+        return s.decode('utf-8')
+    except UnicodeDecodeError, unicode_decode_error:
         try:
-            return s.decode('utf-8')
-        except UnicodeDecodeError as unicode_decode_error:
-            try:
-                import chardet
-            except ImportError:
-                raise unicode_decode_error
+            import chardet
+        except ImportError:
+            raise unicode_decode_error
+        else:
+            encoding = chardet.detect(s)['encoding']
+            if encoding is not None:
+                return s.decode(encoding)
             else:
-                encoding = chardet.detect(s)['encoding']
-                if encoding is not None:
-                    return s.decode(encoding)
-                else:
-                    raise UnicodeDecodeError(s)
+                raise UnicodeDecodeError(s)
 
 
 class NoSuchSerializer(Exception):
@@ -199,7 +200,7 @@ class StringSerializer(SimpleTypeSerializer):
     serializes = (unicode, str)
 
     def serialize(cls, object, tag_name, serialize_as):
-        if not HAVE_PYTHON3 and serialize_as is str:
+        if serialize_as is str:
             try:
                 object = try_decode(object)
             except UnicodeDecodeError:
