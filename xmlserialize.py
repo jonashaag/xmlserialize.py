@@ -1,5 +1,5 @@
 #
-#     Copyright (c) 2009 Jonas Haag <jonas@lophus.org>.
+#     Copyright (c) 2009, 2010 Jonas Haag <jonas@lophus.org>.
 #     All rights reserved.
 #     License: 2-clause-BSD (Berkley Software Distribution) license
 #
