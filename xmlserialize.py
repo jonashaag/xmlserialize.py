@@ -36,7 +36,7 @@ __all__ = (
     'FloatSerializer', 'LongSerializer', 'BooleanSerializer', 'StringSerializer',
     'SimpleIterableSerializer', 'KeyValueIterableSerializer', 'RangeSerializer',
     'serialize_atomic', 'serialize_to_file', 'unserialize_atomic', 'unserialize_file',
-    'unserialize_string'
+    'unserialize_string', 'unserialize', 'serialize'
 )
 
 from lxml.etree import ElementTree, Element, _ElementTree
