@@ -164,6 +164,7 @@ class NoneTypeSerializer(Serializer):
 
 class SimpleTypeSerializer(Serializer):
     def unserialize(cls, xml_element, unserialize_to):
+        assert xml_element.text is not None
         return unserialize_to(xml_element.text)
 
     def serialize(cls, object, tag_name, serialize_as):
@@ -208,6 +209,8 @@ class StringSerializer(SimpleTypeSerializer):
         return super(cls, cls).serialize(unicode(object), tag_name, str)
 
     def unserialize(cls, xml_element, unserialize_to):
+        if xml_element.text is None:
+            return u''
         return unicode(xml_element.text)
 
 
