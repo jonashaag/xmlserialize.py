@@ -39,41 +39,16 @@ __all__ = (
     'unserialize_string', 'unserialize', 'serialize'
 )
 
+try:
+    from collections import defaultdict
+except ImportError:
+    defaultdict = None
+try:
+    from collections import OrderedDict
+except ImportError:
+    OrderedDict = None
 from lxml.etree import ElementTree, Element, _ElementTree
 from lxml.etree import fromstring as elementtree_fromstring, tostring as elementtree_tostring
-
-
-class memoized_function(object):
-    cache = {}
-    def __init__(self, function):
-        self.function = function
-
-    def __call__(self, *args, **kwargs):
-        _kwargs = tuple(kwargs.iteritems())
-        try:
-            cache_key = hash((id(self.function), args, _kwargs))
-        except TypeError:
-            try:
-                import cPickle as pickel
-            except ImportError:
-                import pickle as pickel
-            cache_key = pickel.dumps((id(self.function), args, _kwargs))
-        if cache_key not in self.cache:
-            self.cache[cache_key] = self.function(*args, **kwargs)
-        return self.cache[cache_key]
-
-
-@memoized_function
-def try_import(module, names=('__name__',)):
-    try:
-        module = __import__(module, fromlist=names)
-    except ImportError:
-        return
-
-    for name in names:
-        if not hasattr(module, name):
-            return
-    return module
 
 def try_decode(s):
     try:
@@ -132,18 +107,25 @@ class Serializer(object):
 
     @classmethod
     def subclasses(cls):
-        return get_subclasses(cls, recursive=True)
+        if not hasattr(cls, '_subclasses'):
+            cls._subclasses = get_subclasses(cls, recursive=True)
+        return cls._subclasses
 
     @classmethod
-    def get_for_type(cls, type_):
+    def get_for_type(cls, type_, _cache={}):
         if isinstance(type_, Serializer):
             return type_
-
+        try:
+            return _cache[type_]
+        except KeyError:
+            pass
         for subclass in cls.subclasses():
             if subclass.serializes is NotImplemented: continue
             for serializes in subclass.serializes:
                 if serializes is type_ or serializes.__name__ == type_:
-                    return serializes, subclass
+                    match = (serializes, subclass)
+                    _cache[type_] = match
+                    return match
         raise NoSuchUnserializer(type_ if isinstance(type_, str)
                                        else type_.__name__)
 
@@ -245,11 +227,11 @@ class SimpleIterableSerializer(Serializer):
         return unserialize_to(container)
 
 class KeyValueIterableSerializer(Serializer):
-    serializes = dict
-    if try_import('collections', 'OrderedDict'):
-        serializes += (__import__('collections').OrderedDict,)
-    if try_import('collections', 'defaultdict'):
-        serializes += (__import__('collections').defaultdict,)
+    serializes = (dict,)
+    if defaultdict is not None:
+        serializes += (defaultdict,)
+    if OrderedDict is not None:
+        serializes += (OrderedDict,)
 
     def serialize(cls, object, tag_name, serialize_as):
         container_element = Element(tag_name, type=serialize_as.__name__)
@@ -281,7 +263,6 @@ class RangeSerializer(Serializer):
     def unserialize(cls, xml_element, unserialize_to):
         return unserialize_to(*map(int, xml_element.text.split(cls.sep)))
 
-@memoized_function
 def get_subclasses(klass, recursive=False, max_depth=None, current_depth=0):
     subclasses = []
     for subclass in klass.__subclasses__():
@@ -295,31 +276,31 @@ def get_subclasses(klass, recursive=False, max_depth=None, current_depth=0):
 
     return tuple(subclasses)
 
-def serialize_atomic(object, tag_name):
+def serialize_atomic(object, tag_name, _type_map_cache={}):
     if object is None:
         return NoneTypeSerializer.serialize(None, tag_name, None)
     if hasattr(object, '__xmlserialize__'):
         object = object.__xmlserialize__()
 
     object_type = type(object)
-    subclass_serializer = None
-
-    # TODO: cache the following loop.
-    for serializer in Serializer.subclasses():
-        if serializer.serializes is NotImplemented: continue
-        if object_type in serializer.serializes:
-            return serializer.serialize(object, tag_name, object_type)
-        else:
-            if serializer.promote_lazy and subclass_serializer:
-                    continue
+    match = _type_map_cache.get(object_type)
+    if match is None:
+        for serializer in Serializer.subclasses():
+            if serializer.serializes is NotImplemented: continue
+            if object_type in serializer.serializes:
+                match = (serializer, object_type)
+                break
+            if serializer.promote_lazy and match:
+                continue
             for serializes in serializer.serializes:
                 if issubclass(object_type, serializes):
-                    subclass_serializer = (serializer, serializes)
+                    match = (serializer, serializes)
                     break
-    if subclass_serializer:
-        return subclass_serializer[0].serialize(object, tag_name, subclass_serializer[1])
-    else:
-        raise NoSuchSerializer(object)
+        else:
+            raise NoSuchSerializer(object)
+        assert match
+    _type_map_cache[object_type] = match
+    return match[0].serialize(object, tag_name, match[1])
 
 def serialize(object, tag='object', root_tag=None, return_string=True):
     if root_tag:
