@@ -41,7 +41,7 @@ def run_tests(serialize=xmlserialize.serialize,
             try:
                 assert_equal(
                     testcase,
-                    unserialize(serialize(testcase))['object']
+                    unserialize(serialize(testcase), has_root=False)['object']
                 )
             except AssertionError as message:
                 print("Testcase #%d failed: %s" % (index, message))

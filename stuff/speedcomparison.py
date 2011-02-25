@@ -1,3 +1,4 @@
+import sys
 import time
 from test import TESTCASES
 
@@ -17,10 +18,11 @@ if __name__ == '__main__':
                             xmlserialize.serialize(TESTCASES)))
     print "TOTAL DURATION: %rs | AVERAGE CALL DURATION: %rs" % xtime
 
-    print "Running tests with pickel..."
-    ptime = timeit(lambda: pickel.loads(pickel.dumps(TESTCASES)))
-    print "TOTAL DURATION: %rs | AVERAGE CALL DURATION: %rs" % ptime
+    if not 'nopickel' in sys.argv:
+        print "Running tests with pickel..."
+        ptime = timeit(lambda: pickel.loads(pickel.dumps(TESTCASES)))
+        print "TOTAL DURATION: %rs | AVERAGE CALL DURATION: %rs" % ptime
 
-    x, p = xtime[0], ptime[0]
-    print "Pickel is %d times %s than xmlserialize" % (
-            max(x, p)/min(x, p), ('faster', 'slower')[x < p])
+        x, p = xtime[0], ptime[0]
+        print "Pickel is %d times %s than xmlserialize" % (
+                max(x, p)/min(x, p), ('faster', 'slower')[x < p])
