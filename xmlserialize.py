@@ -291,14 +291,13 @@ def serialize_atomic(object, tag_name, _type_map_cache={}):
                 match = (serializer, object_type)
                 break
             if serializer.promote_lazy and match:
+                # ignore greedy matchers if we got a better match
                 continue
             for serializes in serializer.serializes:
                 if issubclass(object_type, serializes):
                     match = (serializer, serializes)
-                    break
-        else:
+        if match is None:
             raise NoSuchSerializer(object)
-        assert match
     _type_map_cache[object_type] = match
     return match[0].serialize(object, tag_name, match[1])
 

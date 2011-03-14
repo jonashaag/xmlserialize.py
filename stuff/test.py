@@ -11,6 +11,10 @@ if '--cython' in sys.argv:
 
 import xmlserialize
 
+for tp in [dict, list, tuple, str, int]:
+    # omg evil
+    exec "class %s2(%s): pass" % (tp.__name__, tp.__name__)
+
 TESTCASES = {
     'BooleanSerializer' : (-1, 0, 1, True, False, u'a'),
     'IntegerSerializer' : (-10*5+1, -1, -0, 0, 1, 10*5+1),
@@ -18,7 +22,7 @@ TESTCASES = {
     'LongSerializer'    : (-10**20, -10**10, -0, 0, 10**10, 10**20),
     #'RangeSerializer'   : (xrange(100), xrange(1, 10), xrange(-10, 10)),
     'StringSerializer'  : (u'Hello', u'World', u'whøt\'s', u'↑?'),
-    'NoneTypeSerializer': (None,)
+    'NoneTypeSerializer': (None,),
 }
 
 TESTCASES['SimpleIterableSerializer'] = tuple(
@@ -26,6 +30,7 @@ TESTCASES['SimpleIterableSerializer'] = tuple(
                             xmlserialize.SimpleIterableSerializer.serializes)
 TESTCASES['KeyValueIterableSerializer'] = TESTCASES.copy()
 TESTCASES['SimpleIterableSerializer'] += (TESTCASES['KeyValueIterableSerializer'],)
+TESTCASES['Subclasses'] =  (dict2(), list2(), tuple2(), str2(), int2())
 
 
 def assert_equal(*items):
